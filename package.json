@@ -1,0 +1,23 @@
+{
+  "name": "sga-para-claude",
+  "version": "0.1.0",
+  "description": "Conector de solo lectura entre Claude y SGA (ADOSE). Entra con el usuario de SGA de cada persona y respeta sus permisos.",
+  "type": "module",
+  "bin": {
+    "sga-para-claude": "index.js"
+  },
+  "files": [
+    "index.js",
+    "src/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@napi-rs/keyring": "2.1.1",
+    "zod": "3.25.76"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
