@@ -1,7 +1,7 @@
 // Consultas de solo lectura a SGA por la API de Supabase (PostgREST), con el token
 // de la persona. Solo GET: este programa no tiene forma de escribir.
 
-import { TABLAS } from './tablas.js';
+import { TABLAS as TODAS } from './tablas.js';
 import { SUPABASE_URL, PUBLISHABLE_KEY, tokenVigente } from './sesion.js';
 
 export class SinSesion extends Error {}
@@ -28,27 +28,27 @@ function valorFiltro(op, valor) {
   return `${op}.${valor}`;
 }
 
-function validarColumna(tabla, col, para) {
+function validarColumna(TABLAS, tabla, col, para) {
   if (!TABLAS[tabla].columnas.includes(col)) {
     throw new Error(`La columna "${col}" no está disponible en ${tabla} (${para}). Columnas: ${TABLAS[tabla].columnas.join(', ')}`);
   }
 }
 
-export async function consultar({ tabla, columnas, filtros = [], orden, limite = 100, desde = 0, contar = false }) {
+export async function consultar({ tabla, columnas, filtros = [], orden, limite = 100, desde = 0, contar = false }, TABLAS = TODAS) {
   const def = TABLAS[tabla];
   if (!def) throw new Error(`Tabla no disponible: ${tabla}`);
 
   const cols = columnas?.length ? columnas : (def.por_defecto || def.columnas);
-  cols.forEach((c) => validarColumna(tabla, c, 'columnas'));
+  cols.forEach((c) => validarColumna(TABLAS, tabla, c, 'columnas'));
 
   const q = new URLSearchParams();
   q.set('select', cols.join(','));
   for (const f of filtros) {
-    validarColumna(tabla, f.columna, 'filtros');
+    validarColumna(TABLAS, tabla, f.columna, 'filtros');
     q.append(f.columna, (f.negar ? 'not.' : '') + valorFiltro(f.operador, f.valor));
   }
   if (orden?.length) {
-    orden.forEach((o) => validarColumna(tabla, o.columna, 'orden'));
+    orden.forEach((o) => validarColumna(TABLAS, tabla, o.columna, 'orden'));
     q.set('order', orden.map((o) => `${o.columna}.${o.descendente ? 'desc' : 'asc'}.nullslast`).join(','));
   } else if (def.orden) {
     q.set('order', def.orden);

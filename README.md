@@ -9,6 +9,15 @@ Conector de **solo lectura** entre Claude y SGA (sga.adventistassureste.org), el
 
 Cubre: zonas, distritos, iglesias, organización de iglesias, personal y teléfonos, familiares, puestos, vacaciones, permisos y licencias, y actas de junta.
 
+## Dos modalidades
+
+| Modalidad | Qué consulta | Se instala con |
+|---|---|---|
+| **Completa** | Todo lo anterior | `github:prcontreras23/sga-para-claude` |
+| **Directorio** | Solo zonas, distritos, iglesias (datos básicos) y personal con teléfonos | `github:prcontreras23/sga-para-claude directorio` |
+
+En las dos, lo que la persona ve lo deciden sus permisos en SGA. La modalidad solo limita qué le ofrece Claude.
+
 ## Instalación en Windows
 
 1. Instalar **Node.js** (versión LTS) desde https://nodejs.org — siguiente, siguiente, finalizar.
@@ -36,6 +45,8 @@ Cubre: zonas, distritos, iglesias, organización de iglesias, personal y teléfo
    ```
 
    Luego cerrar Claude Desktop por completo y volver a abrirlo.
+
+   Para la modalidad **directorio**, agregar `directorio` al final: en Claude Code, `... sga-para-claude directorio`; en Claude Desktop, `"args": ["/c", "npx", "-y", "github:prcontreras23/sga-para-claude", "directorio"]`.
 
 4. Probar en Claude: «¿Con qué usuario estás conectado a SGA?»
 

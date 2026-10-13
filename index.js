@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // sga-para-claude — conector MCP de solo lectura entre Claude y SGA (ADOSE).
 //
-//   sga-para-claude           servidor MCP (lo arranca Claude)
+//   sga-para-claude           servidor MCP completo (lo arranca Claude)
+//   sga-para-claude directorio  servidor MCP solo con zonas, distritos, iglesias y personal
 //   sga-para-claude entrar    iniciar sesión en SGA
 //   sga-para-claude estado    ver con qué usuario está conectado
 //   sga-para-claude salir     borrar la sesión guardada
@@ -9,7 +10,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { TABLAS, OPERADORES } from './src/tablas.js';
+import { OPERADORES, tablasPara } from './src/tablas.js';
 import { consultar, miPerfil, SinSesion } from './src/consulta.js';
 import { iniciarSesion, sesionActual, borrarSesion, tokenVigente } from './src/sesion.js';
 
@@ -34,12 +35,16 @@ if (comando === 'entrar') {
   borrarSesion();
   console.log('Sesión de SGA borrada de esta computadora.');
   process.exit(0);
-} else if (comando) {
-  console.error(`Comando desconocido: ${comando}. Use entrar, estado o salir.`);
+} else if (comando && comando !== 'directorio') {
+  console.error(`Comando desconocido: ${comando}. Use entrar, estado, salir o directorio.`);
   process.exit(1);
 }
 
 // ── Servidor MCP ──────────────────────────────────────────────
+
+const alcance = comando === 'directorio' ? 'directorio' : 'completo';
+const TABLAS = tablasPara(alcance);
+const MODULOS = [...new Set(Object.values(TABLAS).map((d) => d.modulo))];
 
 const texto = (t) => ({ content: [{ type: 'text', text: t }] });
 const json = (o) => texto(JSON.stringify(o, null, 2));
@@ -68,10 +73,12 @@ async function conSesion(fn) {
   }
 }
 
-const server = new McpServer({ name: 'sga', version: '0.1.0' }, {
+const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.2.0' }, {
   instructions:
     'Conector de solo lectura a SGA, el sistema oficial de ADOSE (Asociación Dominicana del Sureste): ' +
-    'iglesias, distritos, zonas, personal y RRHH, vacaciones y permisos, y actas de junta. ' +
+    (alcance === 'directorio'
+      ? 'zonas, distritos, iglesias y personal (pastores, plantadores, oficina, departamentales y administradores) con sus teléfonos. '
+      : 'iglesias, distritos, zonas, personal y RRHH, vacaciones y permisos, y actas de junta. ') +
     'Consulta con el usuario de SGA de la persona y solo ve lo que sus permisos le dejan ver. ' +
     'Para buscar a alguien y su teléfono use sga_buscar_persona. Para lo demás, sga_tablas y luego sga_consultar. ' +
     'Las tablas se relacionan por códigos: pastores.cod = pastor_cod; distritos.cod = codDistrito; zonas.cod = codZona; iglesias.cod = iglesia_cod. ' +
@@ -85,7 +92,7 @@ server.registerTool('sga_buscar_persona', {
     'y devuelve teléfono, extensión, correo, cargo, zona y distrito. Busca cada palabra por separado y no distingue mayúsculas.',
   inputSchema: {
     texto: z.string().min(2).describe('Nombre o parte del nombre, p. ej. "Noemí Vizcaíno" o "Vizcaino"'),
-    campo: z.enum(['nombre', 'cargo', 'distrito', 'zona']).default('nombre').describe('Dónde buscar'),
+    campo: z.enum(['nombre', 'cargo', 'rol', 'distrito', 'zona']).default('nombre').describe('Dónde buscar. rol: pastor, plantador, oficina, departamental o administrador'),
     incluir_inactivos: z.boolean().default(false).describe('Incluir personas inhabilitadas'),
   },
   annotations: { readOnlyHint: true },
@@ -96,11 +103,11 @@ server.registerTool('sga_buscar_persona', {
   const palabras = normal(t).split(/\s+/).filter(Boolean);
   const r = await consultar({
     tabla: 'pastores',
-    columnas: ['cod', 'nombre', 'cargo', 'telefono', 'extension', 'email', 'zona', 'distrito', 'activo'],
+    columnas: ['cod', 'nombre', 'cargo', 'rol', 'telefono', 'extension', 'email', 'zona', 'distrito', 'activo'],
     filtros: incluir_inactivos ? [] : [{ columna: 'activo', operador: 'is', valor: 'false', negar: true }],
     orden: [{ columna: 'nombre' }],
     limite: 1000,
-  });
+  }, TABLAS);
   const filas = r.filas.filter((f) => palabras.every((p) => normal(f[campo]).includes(p)));
   if (!filas.length) return texto(`No encontré a nadie con "${t}" en ${campo}.`);
   return json(filas.slice(0, 50));
@@ -110,7 +117,7 @@ server.registerTool('sga_tablas', {
   title: 'Tablas de SGA',
   description: 'Lista las tablas de SGA que se pueden consultar, con su descripción y columnas. Úsela antes de sga_consultar.',
   inputSchema: {
-    modulo: z.enum(['Organización', 'RRHH', 'Vacaciones', 'Actas']).optional().describe('Filtrar por módulo'),
+    modulo: z.enum(MODULOS).optional().describe('Filtrar por módulo'),
   },
   annotations: { readOnlyHint: true },
 }, async ({ modulo }) => {
@@ -143,7 +150,7 @@ server.registerTool('sga_consultar', {
   },
   annotations: { readOnlyHint: true },
 }, async (args) => conSesion(async () => {
-  const r = await consultar(args);
+  const r = await consultar(args, TABLAS);
   const nota = r.cantidad === 0
     ? 'Sin resultados. Si esperaba datos, puede ser que su usuario de SGA no tenga permiso para esta tabla.'
     : r.cantidad === r.limite ? `Se devolvieron ${r.limite} filas (el límite). Puede haber más: use "desde" o filtros.` : undefined;

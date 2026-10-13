@@ -20,7 +20,7 @@ export const TABLAS = {
   },
   iglesias: {
     modulo: 'Organización',
-    descripcion: 'Iglesias y grupos con zona, distrito, pastor asignado, situación del título y votos de organización. Fuente oficial de ADOSE.',
+    descripcion: 'Iglesias y grupos con zona, distrito y pastor asignado (y, según el alcance, situación del título y votos de organización). Fuente oficial de ADOSE.',
     columnas: [
       'cod', 'nombre', 'tipo', 'codZona', 'zona', 'codDistrito', 'distrito', 'pastor', 'pastor_cod',
       'titulacion_estado', 'titulacion_detalle', 'titulacion_via', 'titulacion_archivos', 'titulacion_actualizado', 'titulacion_nota',
@@ -67,7 +67,7 @@ export const TABLAS = {
   // ── Personal y RRHH ──────────────────────────────────────────
   pastores: {
     modulo: 'RRHH',
-    descripcion: 'Todo el personal (pastores y empleados de oficina): cargo, rol, zona, distrito, contacto y estado. La fecha de ingreso está en vacaciones_balance. `cod` es el código de la persona y se usa como pastor_cod en las demás tablas.',
+    descripcion: 'Todo el personal: rol pastor, plantador, oficina, departamental o administrador; con cargo, zona, distrito, contacto y estado. La fecha de ingreso está en vacaciones_balance. `cod` es el código de la persona y se usa como pastor_cod en las demás tablas.',
     columnas: [
       'cod', 'nombre', 'cargo', 'rol', 'estado', 'activo', 'sexo', 'telefono', 'extension', 'email',
       'codZona', 'zona', 'codDistrito', 'distrito', 'iglesia_asignada_cod', 'pastor_principal_cod', 'oficiante_matrimonios',
@@ -178,3 +178,23 @@ export const TABLAS = {
 };
 
 export const OPERADORES = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 'in', 'cs'];
+
+// Alcances: qué tablas y columnas ofrece cada modalidad del conector.
+// «directorio» es para quien solo necesita iglesias, personal y la división territorial.
+const DIRECTORIO = {
+  zonas: null,
+  distritos: null,
+  iglesias: ['cod', 'nombre', 'tipo', 'codZona', 'zona', 'codDistrito', 'distrito', 'pastor', 'pastor_cod'],
+  pastores: ['cod', 'nombre', 'cargo', 'rol', 'activo', 'telefono', 'extension', 'email', 'codZona', 'zona', 'codDistrito', 'distrito', 'iglesia_asignada_cod'],
+};
+
+export const ALCANCES = ['completo', 'directorio'];
+
+export function tablasPara(alcance) {
+  if (alcance !== 'directorio') return TABLAS;
+  return Object.fromEntries(Object.entries(DIRECTORIO).map(([nombre, cols]) => {
+    const def = TABLAS[nombre];
+    if (!cols) return [nombre, def];
+    return [nombre, { ...def, columnas: cols, por_defecto: (def.por_defecto || def.columnas).filter((c) => cols.includes(c)) }];
+  }));
+}
