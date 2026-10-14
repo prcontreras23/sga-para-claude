@@ -73,7 +73,7 @@ async function conSesion(fn) {
   }
 }
 
-const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.3.0' }, {
+const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.3.1' }, {
   instructions:
     'Conector de solo lectura a SGA, el sistema oficial de ADOSE (Asociación Dominicana del Sureste): ' +
     (alcance === 'directorio'
@@ -170,13 +170,17 @@ async function todas(tabla, args = {}) {
   }
   return out;
 }
+// Solo «sin permiso» cuenta como lista vacía. Una sesión vencida o un error de red se
+// dejan pasar, para que se pida entrar de nuevo o se vea el error real (el 14 oct un
+// error tragado aquí le dijo a Ribel que no tenía acceso a ningún formulario).
+const sinPermisoVacio = (e) => { if (!(e instanceof SinSesion) && /no tiene permiso/.test(e.message)) return []; throw e; };
 async function listaFormularios() {
   const [sga, evs, evf, rs, re] = await Promise.all([
-    todas('formularios', { columnas: ['id', 'titulo', 'audiencia', 'estado', 'fecha_limite', 'created_at'] }).catch(() => []),
-    todas('eventos', { columnas: ['id', 'nombre'] }).catch(() => []),
-    todas('eventos_formularios', { columnas: ['id', 'evento_id', 'nombre', 'activo', 'cierra', 'created_at'] }).catch(() => []),
-    todas('formularios_respuestas', { columnas: ['formulario_id'] }).catch(() => []),
-    todas('eventos_formulario_respuestas', { columnas: ['formulario_id'] }).catch(() => []),
+    todas('formularios', { columnas: ['id', 'titulo', 'audiencia', 'estado', 'fecha_limite', 'created_at'] }).catch(sinPermisoVacio),
+    todas('eventos', { columnas: ['id', 'nombre'] }).catch(sinPermisoVacio),
+    todas('eventos_formularios', { columnas: ['id', 'evento_id', 'nombre', 'activo', 'cierra', 'created_at'] }).catch(sinPermisoVacio),
+    todas('formularios_respuestas', { columnas: ['formulario_id'] }).catch(sinPermisoVacio),
+    todas('eventos_formulario_respuestas', { columnas: ['formulario_id'] }).catch(sinPermisoVacio),
   ]);
   const cuenta = (xs, id) => xs.filter((r) => r.formulario_id === id).length;
   return [
