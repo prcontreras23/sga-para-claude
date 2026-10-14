@@ -7,14 +7,14 @@ Conector de **solo lectura** entre Claude y SGA (sga.adventistassureste.org), el
 - La contraseña no se guarda. Queda solo la sesión, en el Administrador de credenciales de Windows (o el Llavero en Mac).
 - Para quitar el acceso: desactivar al usuario o quitarle el permiso en SGA → Gestionar accesos.
 
-Cubre: zonas, distritos, iglesias, organización de iglesias, personal y teléfonos, familiares, puestos, vacaciones, permisos y licencias, y actas de junta.
+Cubre: zonas, distritos, iglesias, organización de iglesias, personal y teléfonos, familiares, puestos, vacaciones, permisos y licencias, y actas de junta, y formularios con sus respuestas (los del módulo Formularios y los de los eventos).
 
 ## Dos modalidades
 
 | Modalidad | Qué consulta | Se instala con |
 |---|---|---|
 | **Completa** | Todo lo anterior | `github:prcontreras23/sga-para-claude` |
-| **Directorio** | Solo zonas, distritos, iglesias (datos básicos) y personal con teléfonos | `github:prcontreras23/sga-para-claude directorio` |
+| **Directorio** | Zonas, distritos, iglesias (datos básicos), personal con teléfonos y formularios | `github:prcontreras23/sga-para-claude directorio` |
 
 En las dos, lo que la persona ve lo deciden sus permisos en SGA. La modalidad solo limita qué le ofrece Claude.
 

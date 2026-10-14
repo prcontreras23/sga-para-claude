@@ -73,14 +73,15 @@ async function conSesion(fn) {
   }
 }
 
-const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.2.0' }, {
+const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.3.0' }, {
   instructions:
     'Conector de solo lectura a SGA, el sistema oficial de ADOSE (Asociación Dominicana del Sureste): ' +
     (alcance === 'directorio'
       ? 'zonas, distritos, iglesias y personal (pastores, plantadores, oficina, departamentales y administradores) con sus teléfonos. '
       : 'iglesias, distritos, zonas, personal y RRHH, vacaciones y permisos, y actas de junta. ') +
+    'También los formularios y sus respuestas: los del módulo Formularios y los de los eventos. ' +
     'Consulta con el usuario de SGA de la persona y solo ve lo que sus permisos le dejan ver. ' +
-    'Para buscar a alguien y su teléfono use sga_buscar_persona. Para lo demás, sga_tablas y luego sga_consultar. ' +
+    'Para buscar a alguien y su teléfono use sga_buscar_persona. Para ver formularios use sga_formularios y sga_formulario_respuestas. Para lo demás, sga_tablas y luego sga_consultar. ' +
     'Las tablas se relacionan por códigos: pastores.cod = pastor_cod; distritos.cod = codDistrito; zonas.cod = codZona; iglesias.cod = iglesia_cod. ' +
     'No puede modificar nada en SGA.',
 });
@@ -155,6 +156,95 @@ server.registerTool('sga_consultar', {
     ? 'Sin resultados. Si esperaba datos, puede ser que su usuario de SGA no tenga permiso para esta tabla.'
     : r.cantidad === r.limite ? `Se devolvieron ${r.limite} filas (el límite). Puede haber más: use "desde" o filtros.` : undefined;
   return json({ ...r, ...(nota ? { nota } : {}) });
+}));
+
+// ── Formularios ───────────────────────────────────────────────
+const normal = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+// Trae todas las filas (de mil en mil). Si la persona no tiene permiso, la base devuelve vacío.
+async function todas(tabla, args = {}) {
+  const out = [];
+  for (let desde = 0; desde < 50000; desde += 1000) {
+    const r = await consultar({ ...args, tabla, limite: 1000, desde }, TABLAS);
+    out.push(...r.filas);
+    if (r.cantidad < 1000) break;
+  }
+  return out;
+}
+async function listaFormularios() {
+  const [sga, evs, evf, rs, re] = await Promise.all([
+    todas('formularios', { columnas: ['id', 'titulo', 'audiencia', 'estado', 'fecha_limite', 'created_at'] }).catch(() => []),
+    todas('eventos', { columnas: ['id', 'nombre'] }).catch(() => []),
+    todas('eventos_formularios', { columnas: ['id', 'evento_id', 'nombre', 'activo', 'cierra', 'created_at'] }).catch(() => []),
+    todas('formularios_respuestas', { columnas: ['formulario_id'] }).catch(() => []),
+    todas('eventos_formulario_respuestas', { columnas: ['formulario_id'] }).catch(() => []),
+  ]);
+  const cuenta = (xs, id) => xs.filter((r) => r.formulario_id === id).length;
+  return [
+    ...sga.map((f) => ({ id: f.id, origen: 'sga', nombre: f.titulo, estado: f.estado, audiencia: f.audiencia, fecha_limite: f.fecha_limite, respuestas: cuenta(rs, f.id), creado: f.created_at })),
+    ...evf.map((f) => ({ id: f.id, origen: 'evento', nombre: f.nombre, evento: evs.find((e) => e.id === f.evento_id)?.nombre ?? null, estado: f.activo ? 'activo' : 'inactivo', cierra: f.cierra, respuestas: cuenta(re, f.id), creado: f.created_at })),
+  ];
+}
+
+server.registerTool('sga_formularios', {
+  title: 'Formularios de SGA',
+  description:
+    'Lista los formularios que el usuario puede ver: los del módulo Formularios de SGA (origen "sga") y los de los eventos (origen "evento"), ' +
+    'con estado y cantidad de respuestas. Use el id con sga_formulario_respuestas.',
+  inputSchema: {
+    texto: z.string().optional().describe('Filtrar por parte del nombre del formulario o del evento'),
+  },
+  annotations: { readOnlyHint: true },
+}, async ({ texto: t }) => conSesion(async () => {
+  let xs = await listaFormularios();
+  if (t) { const ps = normal(t).split(/\s+/).filter(Boolean); xs = xs.filter((f) => ps.every((p) => normal(`${f.nombre} ${f.evento || ''}`).includes(p))); }
+  if (!xs.length) return texto(t ? `No encontré formularios con "${t}" que su usuario pueda ver.` : 'Su usuario de SGA no tiene acceso a ningún formulario.');
+  return json(xs);
+}));
+
+server.registerTool('sga_formulario_respuestas', {
+  title: 'Respuestas de un formulario',
+  description:
+    'Devuelve las respuestas de un formulario (de SGA o de un evento) con el texto de cada pregunta como nombre de columna, ' +
+    'más la fecha de envío y, si aplica, distrito, pastor o quien envió. Acepta el id o parte del nombre del formulario.',
+  inputSchema: {
+    formulario: z.string().min(2).describe('Id del formulario (de sga_formularios) o parte de su nombre'),
+    limite: z.number().int().min(1).max(5000).default(1000),
+  },
+  annotations: { readOnlyHint: true },
+}, async ({ formulario, limite }) => conSesion(async () => {
+  const todos = await listaFormularios();
+  let f = todos.find((x) => x.id === formulario);
+  if (!f) {
+    const ps = normal(formulario).split(/\s+/).filter(Boolean);
+    const xs = todos.filter((x) => ps.every((p) => normal(`${x.nombre} ${x.evento || ''}`).includes(p)));
+    if (!xs.length) return texto(`No encontré un formulario "${formulario}" que su usuario pueda ver.`);
+    if (xs.length > 1) return json({ nota: 'Hay varios formularios con ese nombre. Repita con el id.', formularios: xs.map(({ id, origen, nombre, evento }) => ({ id, origen, nombre, evento })) });
+    f = xs[0];
+  }
+  const filtro = [{ columna: 'formulario_id', operador: 'eq', valor: f.id }];
+  let campos, filas;
+  if (f.origen === 'sga') {
+    campos = (await todas('formularios_campos', { filtros: filtro, orden: [{ columna: 'orden' }] })).map((c) => ({ llave: c.id, etiqueta: c.etiqueta, tipo: c.tipo, activo: c.activo }));
+    const rs = await todas('formularios_respuestas', { filtros: filtro, columnas: ['created_at', 'distrito', 'zona', 'pastor_nombre', 'empleado_cod', 'valores'], orden: [{ columna: 'created_at', descendente: true }] });
+    filas = rs.map((r) => ({ enviada: r.created_at, ...(r.distrito ? { zona: r.zona, distrito: r.distrito, pastor: r.pastor_nombre } : {}), ...(r.empleado_cod ? { empleado_cod: r.empleado_cod } : {}), valores: r.valores || {} }));
+  } else {
+    campos = (await todas('eventos_formulario_campos', { filtros: filtro, orden: [{ columna: 'orden' }] })).map((c) => ({ llave: c.clave, etiqueta: c.etiqueta, tipo: c.tipo, activo: true }));
+    const rs = await todas('eventos_formulario_respuestas', { filtros: filtro, columnas: ['created_at', 'distrito_cod', 'iglesia_cod', 'enviado_por', 'valores'], orden: [{ columna: 'created_at', descendente: true }] });
+    filas = rs.map((r) => ({ enviada: r.created_at, ...(r.enviado_por ? { enviado_por: r.enviado_por } : {}), ...(r.distrito_cod ? { distrito_cod: r.distrito_cod } : {}), ...(r.iglesia_cod ? { iglesia_cod: r.iglesia_cod } : {}), valores: r.valores || {} }));
+  }
+  // Cada respuesta con el texto de la pregunta en vez del código interno.
+  const respuestas = filas.slice(0, limite).map(({ valores, ...resto }) => {
+    const o = { ...resto };
+    for (const c of campos) if (valores[c.llave] !== undefined) o[c.etiqueta] = valores[c.llave];
+    return o;
+  });
+  return json({
+    formulario: { id: f.id, origen: f.origen, nombre: f.nombre, ...(f.evento ? { evento: f.evento } : {}), estado: f.estado },
+    preguntas: campos.map((c) => `${c.etiqueta} (${c.tipo})${c.activo ? '' : ' — ya no se muestra'}`),
+    total: filas.length,
+    respuestas,
+    ...(filas.length > limite ? { nota: `Se devolvieron ${limite} de ${filas.length}. Suba el límite para ver más.` } : {}),
+  });
 }));
 
 server.registerTool('sga_quien_soy', {

@@ -175,6 +175,70 @@ export const TABLAS = {
     columnas: ['anio', 'concepto', 'pagina', 'fuente'],
     orden: 'anio.desc',
   },
+
+  // ── Formularios ──────────────────────────────────────────────
+  // Dos orígenes: el módulo Formularios de SGA (esquema public) y los formularios de
+  // cada evento (esquema eventos, con `esquema` y el nombre real en `tabla`).
+  // Para leer respuestas con el nombre de cada pregunta es más fácil sga_formulario_respuestas.
+  formularios: {
+    modulo: 'Formularios',
+    descripcion: 'Formularios del módulo Formularios de SGA (audiencia: distritos, libre o empleados; estado: borrador, abierto o cerrado). Requiere ver_formularios.',
+    columnas: ['id', 'titulo', 'descripcion', 'audiencia', 'estado', 'fecha_limite', 'mensaje_final', 'creado_por_email', 'created_at', 'updated_at'],
+    por_defecto: ['id', 'titulo', 'audiencia', 'estado', 'fecha_limite', 'created_at'],
+    orden: 'created_at.desc',
+  },
+  formularios_campos: {
+    modulo: 'Formularios',
+    descripcion: 'Preguntas de cada formulario de SGA (formulario_id → formularios.id). En formularios_respuestas.valores, la llave de cada respuesta es el id del campo.',
+    columnas: ['id', 'formulario_id', 'orden', 'tipo', 'etiqueta', 'ayuda', 'requerido', 'opciones', 'identifica', 'activo'],
+    orden: 'orden',
+  },
+  formularios_respuestas: {
+    modulo: 'Formularios',
+    descripcion: 'Respuestas a los formularios de SGA. valores es un objeto {id_del_campo: respuesta}. Incluye distrito, zona y pastor cuando el formulario es por distrito, y empleado_cod cuando está vinculada a un empleado.',
+    columnas: ['id', 'formulario_id', 'created_at', 'cod_distrito', 'distrito', 'zona', 'pastor_cod', 'pastor_nombre', 'valores', 'empleado_cod', 'vinculo_origen'],
+    orden: 'created_at.desc',
+  },
+  formularios_destinatarios: {
+    modulo: 'Formularios',
+    descripcion: 'Empleados a quienes va dirigido un formulario de audiencia «empleados» (pastor_cod → pastores.cod).',
+    columnas: ['formulario_id', 'pastor_cod', 'created_at'],
+    orden: 'created_at',
+  },
+  eventos: {
+    modulo: 'Formularios',
+    esquema: 'eventos',
+    tabla: 'eventos',
+    descripcion: 'Eventos de SGA (módulo Eventos) que el usuario puede ver: los de su equipo, o todos si ve todos los eventos.',
+    columnas: ['id', 'slug', 'nombre', 'descripcion', 'tipo', 'fecha_inicio', 'fecha_fin', 'estado', 'archivado'],
+    por_defecto: ['id', 'slug', 'nombre', 'tipo', 'fecha_inicio', 'fecha_fin', 'estado'],
+    orden: 'fecha_inicio.desc',
+  },
+  eventos_formularios: {
+    modulo: 'Formularios',
+    esquema: 'eventos',
+    tabla: 'formularios',
+    descripcion: 'Formularios de los eventos (evento_id → eventos.id). Solo salen los de eventos en los que el usuario tiene acceso a Formularios.',
+    columnas: ['id', 'evento_id', 'nombre', 'descripcion', 'ambito', 'activo', 'abre', 'cierra', 'multiples', 'created_at'],
+    por_defecto: ['id', 'evento_id', 'nombre', 'ambito', 'activo', 'cierra'],
+    orden: 'created_at.desc',
+  },
+  eventos_formulario_campos: {
+    modulo: 'Formularios',
+    esquema: 'eventos',
+    tabla: 'formulario_campos',
+    descripcion: 'Preguntas de cada formulario de evento. En eventos_formulario_respuestas.valores, la llave de cada respuesta es `clave`.',
+    columnas: ['id', 'formulario_id', 'clave', 'etiqueta', 'tipo', 'requerido', 'opciones', 'ayuda', 'orden'],
+    orden: 'orden',
+  },
+  eventos_formulario_respuestas: {
+    modulo: 'Formularios',
+    esquema: 'eventos',
+    tabla: 'formulario_respuestas',
+    descripcion: 'Respuestas a los formularios de eventos. valores es un objeto {clave_del_campo: respuesta}; distrito_cod e iglesia_cod cuando aplican.',
+    columnas: ['id', 'formulario_id', 'distrito_cod', 'iglesia_cod', 'valores', 'enviado_por', 'created_at', 'corregida_at'],
+    orden: 'created_at.desc',
+  },
 };
 
 export const OPERADORES = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 'in', 'cs'];
@@ -186,6 +250,15 @@ const DIRECTORIO = {
   distritos: null,
   iglesias: ['cod', 'nombre', 'tipo', 'codZona', 'zona', 'codDistrito', 'distrito', 'pastor', 'pastor_cod'],
   pastores: ['cod', 'nombre', 'cargo', 'rol', 'activo', 'telefono', 'extension', 'email', 'codZona', 'zona', 'codDistrito', 'distrito', 'iglesia_asignada_cod'],
+  // Formularios también en el directorio: la base solo muestra los que la persona puede ver.
+  formularios: null,
+  formularios_campos: null,
+  formularios_respuestas: null,
+  formularios_destinatarios: null,
+  eventos: null,
+  eventos_formularios: null,
+  eventos_formulario_campos: null,
+  eventos_formulario_respuestas: null,
 };
 
 export const ALCANCES = ['completo', 'directorio'];

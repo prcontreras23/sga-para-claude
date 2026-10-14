@@ -57,7 +57,7 @@ export async function consultar({ tabla, columnas, filtros = [], orden, limite =
   q.set('limit', String(lim));
   if (desde) q.set('offset', String(desde));
 
-  const url = `${SUPABASE_URL}/rest/v1/${tabla}?${q}`;
+  const url = `${SUPABASE_URL}/rest/v1/${def.tabla || tabla}?${q}`;
 
   for (let intento = 0; intento < 2; intento++) {
     const token = await tokenVigente();
@@ -68,6 +68,7 @@ export async function consultar({ tabla, columnas, filtros = [], orden, limite =
         apikey: PUBLISHABLE_KEY,
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
+        ...(def.esquema ? { 'Accept-Profile': def.esquema } : {}),
         ...(contar ? { Prefer: 'count=exact' } : {}),
       },
     });
