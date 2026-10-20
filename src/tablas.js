@@ -206,7 +206,7 @@ export const TABLAS = {
     orden: 'created_at',
   },
   eventos: {
-    modulo: 'Formularios',
+    modulo: 'Eventos',
     esquema: 'eventos',
     tabla: 'eventos',
     descripcion: 'Eventos de SGA (módulo Eventos) que el usuario puede ver: los de su equipo, o todos si ve todos los eventos.',
@@ -239,6 +239,35 @@ export const TABLAS = {
     columnas: ['id', 'formulario_id', 'distrito_cod', 'iglesia_cod', 'valores', 'enviado_por', 'created_at', 'corregida_at'],
     orden: 'created_at.desc',
   },
+
+  // ── Eventos: personas, programas y asistencia ────────────────
+  // Solo lo de los eventos en cuyo equipo está la persona (RLS por área).
+  // Sin tokens ni pagos: los enlaces personales y el dinero no salen de SGA.
+  eventos_personas: {
+    modulo: 'Eventos',
+    esquema: 'eventos',
+    tabla: 'personas',
+    descripcion: 'Personas inscritas en cada evento (evento_id → eventos.id) con iglesia, distrito, zona y teléfono. `categoria` es el grupo de la persona (p. ej. «Graduación 21 nov»). Requiere ver Personas en el evento.',
+    columnas: ['id', 'evento_id', 'linea', 'nombre', 'apellido', 'iglesia', 'iglesia_cod', 'distrito', 'zona', 'telefono', 'email', 'categoria', 'visita', 'no_adventista', 'nota', 'llego_at', 'created_at'],
+    por_defecto: ['linea', 'nombre', 'apellido', 'iglesia', 'distrito', 'zona', 'telefono', 'categoria'],
+    orden: 'linea',
+  },
+  eventos_programas: {
+    modulo: 'Eventos',
+    esquema: 'eventos',
+    tabla: 'programas',
+    descripcion: 'Programas de cada evento (una noche, un culto, una graduación), con fecha, hora de inicio, lugar y estado (borrador, activo, cerrado).',
+    columnas: ['id', 'evento_id', 'nombre', 'fecha', 'hora_inicio_base', 'lugar', 'estado', 'nota', 'orden'],
+    orden: 'orden',
+  },
+  eventos_asistencia: {
+    modulo: 'Eventos',
+    esquema: 'eventos',
+    tabla: 'programa_presencias',
+    descripcion: 'Asistencia: una fila por persona presente en un programa (programa_id → eventos_programas.id, persona_id → eventos_personas.id). Para contar noches por persona es más fácil sga_evento_personas.',
+    columnas: ['programa_id', 'evento_id', 'persona_id', 'llego_en'],
+    orden: 'llego_en',
+  },
 };
 
 export const OPERADORES = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 'in', 'cs'];
@@ -259,6 +288,9 @@ const DIRECTORIO = {
   eventos_formularios: null,
   eventos_formulario_campos: null,
   eventos_formulario_respuestas: null,
+  eventos_personas: null,
+  eventos_programas: null,
+  eventos_asistencia: null,
 };
 
 export const ALCANCES = ['completo', 'directorio'];

@@ -1,6 +1,6 @@
 {
   "name": "sga-para-claude",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Conector de solo lectura entre Claude y SGA (ADOSE). Entra con el usuario de SGA de cada persona y respeta sus permisos.",
   "type": "module",
   "bin": {

@@ -73,15 +73,15 @@ async function conSesion(fn) {
   }
 }
 
-const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.3.1' }, {
+const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.4.0' }, {
   instructions:
     'Conector de solo lectura a SGA, el sistema oficial de ADOSE (Asociación Dominicana del Sureste): ' +
     (alcance === 'directorio'
       ? 'zonas, distritos, iglesias y personal (pastores, plantadores, oficina, departamentales y administradores) con sus teléfonos. '
       : 'iglesias, distritos, zonas, personal y RRHH, vacaciones y permisos, y actas de junta. ') +
-    'También los formularios y sus respuestas: los del módulo Formularios y los de los eventos. ' +
+    'También los formularios y sus respuestas, y los eventos con sus personas, programas y asistencia. ' +
     'Consulta con el usuario de SGA de la persona y solo ve lo que sus permisos le dejan ver. ' +
-    'Para buscar a alguien y su teléfono use sga_buscar_persona. Para ver formularios use sga_formularios y sga_formulario_respuestas. Para lo demás, sga_tablas y luego sga_consultar. ' +
+    'Para buscar a alguien y su teléfono use sga_buscar_persona. Para ver formularios use sga_formularios y sga_formulario_respuestas. Para las personas, el grupo y la asistencia de un evento use sga_evento_personas. Para lo demás, sga_tablas y luego sga_consultar. ' +
     'Las tablas se relacionan por códigos: pastores.cod = pastor_cod; distritos.cod = codDistrito; zonas.cod = codZona; iglesias.cod = iglesia_cod. ' +
     'No puede modificar nada en SGA.',
 });
@@ -248,6 +248,69 @@ server.registerTool('sga_formulario_respuestas', {
     total: filas.length,
     respuestas,
     ...(filas.length > limite ? { nota: `Se devolvieron ${limite} de ${filas.length}. Suba el límite para ver más.` } : {}),
+  });
+}));
+
+// ── Eventos ───────────────────────────────────────────────────
+async function buscarEvento(t) {
+  const evs = await todas('eventos', { columnas: ['id', 'slug', 'nombre', 'fecha_inicio', 'fecha_fin'] }).catch(sinPermisoVacio);
+  const exacto = evs.find((e) => e.id === t || e.slug === t);
+  if (exacto) return { evento: exacto };
+  const ps = normal(t).split(/\s+/).filter(Boolean);
+  const xs = evs.filter((e) => ps.every((p) => normal(`${e.nombre} ${e.slug}`).includes(p)));
+  if (xs.length === 1) return { evento: xs[0] };
+  return { opciones: xs.length ? xs : evs };
+}
+
+server.registerTool('sga_evento_personas', {
+  title: 'Personas de un evento',
+  description:
+    'Lista las personas de un evento de SGA con iglesia, distrito, zona, teléfono, grupo (p. ej. «Graduación 21 nov») ' +
+    'y la asistencia: cuántos programas asistió y cuáles. Incluye un resumen por grupo y por zona. ' +
+    'Se puede filtrar por grupo, zona, distrito, iglesia o nombre (sin tildes ni mayúsculas).',
+  inputSchema: {
+    evento: z.string().min(2).describe('Nombre, parte del nombre o slug del evento, p. ej. "Graduación Southern"'),
+    grupo: z.string().optional().describe('Parte del grupo, p. ej. "21 nov"'),
+    zona: z.string().optional(),
+    distrito: z.string().optional(),
+    iglesia: z.string().optional(),
+    nombre: z.string().optional(),
+    solo_resumen: z.boolean().default(false).describe('Devolver solo los totales, sin la lista'),
+    limite: z.number().int().min(1).max(5000).default(500),
+  },
+  annotations: { readOnlyHint: true },
+}, async ({ evento, grupo, zona, distrito, iglesia, nombre, solo_resumen, limite }) => conSesion(async () => {
+  const { evento: ev, opciones } = await buscarEvento(evento);
+  if (!ev) {
+    if (!opciones.length) return texto('Su usuario de SGA no tiene acceso a ningún evento.');
+    return json({ nota: `No encontré un solo evento con "${evento}". Repita con el slug.`, eventos: opciones.map(({ slug, nombre }) => ({ slug, nombre })) });
+  }
+  const filtro = [{ columna: 'evento_id', operador: 'eq', valor: ev.id }];
+  const [personas, programas, asistencia] = await Promise.all([
+    todas('eventos_personas', { filtros: filtro, columnas: ['id', 'linea', 'nombre', 'apellido', 'iglesia', 'distrito', 'zona', 'telefono', 'categoria'] }),
+    todas('eventos_programas', { filtros: filtro, columnas: ['id', 'nombre', 'fecha', 'estado', 'orden'] }).catch(sinPermisoVacio),
+    todas('eventos_asistencia', { filtros: filtro, columnas: ['programa_id', 'persona_id'] }).catch(sinPermisoVacio),
+  ]);
+  if (!personas.length) return texto(`El evento «${ev.nombre}» no tiene personas, o su usuario no tiene permiso para ver Personas en ese evento.`);
+  const nombreProg = new Map(programas.map((p) => [p.id, p.nombre]));
+  const deCada = new Map();
+  for (const a of asistencia) deCada.set(a.persona_id, [...(deCada.get(a.persona_id) || []), nombreProg.get(a.programa_id) || a.programa_id]);
+  const tiene = (v, t) => !t || normal(v).includes(normal(t));
+  const filas = personas
+    .filter((p) => tiene(p.categoria, grupo) && tiene(p.zona, zona) && tiene(p.distrito, distrito) && tiene(p.iglesia, iglesia) && tiene(`${p.nombre} ${p.apellido || ''}`, nombre))
+    .map((p) => ({
+      linea: p.linea, nombre: [p.nombre, p.apellido].filter(Boolean).join(' '), iglesia: p.iglesia, distrito: p.distrito, zona: p.zona,
+      telefono: p.telefono, grupo: p.categoria, asistio: (deCada.get(p.id) || []).length, programas: deCada.get(p.id) || [],
+    }));
+  const contar = (k) => Object.fromEntries([...filas.reduce((m, f) => m.set(f[k] || '(sin dato)', (m.get(f[k] || '(sin dato)') || 0) + 1), new Map())].sort());
+  return json({
+    evento: { nombre: ev.nombre, slug: ev.slug, desde: ev.fecha_inicio, hasta: ev.fecha_fin },
+    programas: programas.map((p) => ({ nombre: p.nombre, fecha: p.fecha, estado: p.estado, presentes: asistencia.filter((a) => a.programa_id === p.id).length })),
+    total: filas.length,
+    por_grupo: contar('grupo'),
+    por_zona: contar('zona'),
+    ...(solo_resumen ? {} : { personas: filas.slice(0, limite) }),
+    ...(!solo_resumen && filas.length > limite ? { nota: `Se devolvieron ${limite} de ${filas.length}. Suba el límite o filtre.` } : {}),
   });
 }));
 
