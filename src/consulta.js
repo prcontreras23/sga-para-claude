@@ -1,4 +1,4 @@
-// Consultas de solo lectura a SGA por la API de Supabase (PostgREST), con el token
+// Consultas de solo lectura a SDA+ por la API de Supabase (PostgREST), con el token
 // de la persona. Solo GET: este programa no tiene forma de escribir.
 
 import { TABLAS as TODAS } from './tablas.js';
@@ -76,7 +76,7 @@ export async function consultar({ tabla, columnas, filtros = [], orden, limite =
     const d = await r.json().catch(() => null);
     if (!r.ok) {
       if (r.status === 401 || r.status === 403 || d?.code === '42501') {
-        throw new Error(`Su usuario de SGA no tiene permiso para consultar ${tabla}.`);
+        throw new Error(`Su usuario de SDA+ no tiene permiso para consultar ${tabla}.`);
       }
       throw new Error(d?.message ? `${d.message}${d.hint ? ` (${d.hint})` : ''}` : `Error ${r.status} al consultar ${tabla}`);
     }

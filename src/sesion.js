@@ -1,7 +1,7 @@
-// Sesión de SGA: inicio de sesión en el navegador, guardado en el almacén de
+// Sesión de SDA+: inicio de sesión en el navegador, guardado en el almacén de
 // credenciales del sistema (Administrador de credenciales en Windows, Llavero en
 // Mac) y renovación automática del token. La contraseña nunca se guarda: solo el
-// token de renovación que entrega SGA, que se anula al desactivar al usuario.
+// token de renovación que entrega SDA+, que se anula al desactivar al usuario.
 
 import http from 'node:http';
 import crypto from 'node:crypto';
@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process';
 import { Entry } from '@napi-rs/keyring';
 import { paginaEntrada, paginaListo } from './paginas.js';
 
-// Datos públicos de SGA: los mismos que lleva la página de entrada de la app.
+// Datos públicos de SDA+: los mismos que lleva la página de entrada de la app.
 export const SUPABASE_URL = 'https://gvbknabnrlliofbchczv.supabase.co';
 export const PUBLISHABLE_KEY = 'sb_publishable_Aq0D-OaqMzUbtGNLrTo4aQ_36xEH-vI';
 
@@ -95,7 +95,7 @@ let entradaEnCurso = null;
 
 // Abre la página de entrada en el navegador y espera a que la persona inicie sesión.
 // La contraseña viaja del navegador a este programa (en la misma computadora) y de
-// aquí directo a SGA; no se guarda en ningún lado.
+// aquí directo a SDA+; no se guarda en ningún lado.
 export function iniciarSesion({ avisar = () => {}, minutos = 5 } = {}) {
   if (entradaEnCurso) return entradaEnCurso;
   entradaEnCurso = new Promise((resolve, reject) => {
@@ -124,7 +124,7 @@ export function iniciarSesion({ avisar = () => {}, minutos = 5 } = {}) {
           resolve(s);
         } catch (e) {
           const msg = e.code === 'invalid_credentials' || e.status === 400
-            ? 'El correo o la contraseña no son correctos. Use los mismos con los que entra a SGA.'
+            ? 'El correo o la contraseña no son correctos. Use los mismos con los que entra a SDA+.'
             : `No se pudo iniciar sesión: ${e.message}`;
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(paginaEntrada({ error: msg, email }));
         }
@@ -133,7 +133,7 @@ export function iniciarSesion({ avisar = () => {}, minutos = 5 } = {}) {
 
     const reloj = setTimeout(() => {
       terminar();
-      reject(new Error('Se agotó el tiempo para iniciar sesión en SGA.'));
+      reject(new Error('Se agotó el tiempo para iniciar sesión en SDA+.'));
     }, minutos * 60_000);
 
     function terminar() {

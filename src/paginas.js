@@ -1,4 +1,4 @@
-// Páginas que se abren en el navegador para iniciar sesión en SGA.
+// Páginas que se abren en el navegador para iniciar sesión en SDA+.
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -8,7 +8,7 @@ function marco(cuerpo) {
   return `<!doctype html>
 <html lang="es"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SGA — Conectar con Claude</title>
+<title>SDA+ — Conectar con Claude</title>
 <style>
   :root{--marino:#02365E;--turquesa:#408491;--fondo:#f4f6f8;--texto:#1d2733;--suave:#5b6878;--error:#a3271f}
   *{box-sizing:border-box}
@@ -31,9 +31,9 @@ function marco(cuerpo) {
 
 export function paginaEntrada({ error = '', email = '' } = {}) {
   return marco(`
-  <img src="${LOGO}" alt="SGA">
-  <h1>Conectar Claude con SGA</h1>
-  <p>Use el mismo correo y la misma contraseña con los que entra a SGA.</p>
+  <img src="${LOGO}" alt="SDA+">
+  <h1>Conectar Claude con SDA+</h1>
+  <p>Use el mismo correo y la misma contraseña con los que entra a SDA+.</p>
   ${error ? `<div class="error">${esc(error)}</div>` : ''}
   <form method="post">
     <label for="email">Correo</label>
@@ -42,12 +42,12 @@ export function paginaEntrada({ error = '', email = '' } = {}) {
     <input id="password" name="password" type="password" autocomplete="current-password" required ${email ? 'autofocus' : ''}>
     <button type="submit">Entrar</button>
   </form>
-  <p class="nota">Claude solo podrá consultar, nunca modificar, y verá lo mismo que usted ve en SGA.</p>`);
+  <p class="nota">Claude solo podrá consultar, nunca modificar, y verá lo mismo que usted ve en SDA+.</p>`);
 }
 
 export function paginaListo(email) {
   return marco(`
-  <img src="${LOGO}" alt="SGA">
+  <img src="${LOGO}" alt="SDA+">
   <h1>Listo</h1>
-  <p>Claude quedó conectado a SGA con el usuario <strong>${esc(email)}</strong>.<br>Puede cerrar esta ventana y volver a Claude.</p>`);
+  <p>Claude quedó conectado a SDA+ con el usuario <strong>${esc(email)}</strong>.<br>Puede cerrar esta ventana y volver a Claude.</p>`);
 }

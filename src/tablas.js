@@ -1,7 +1,7 @@
-// Tablas de SGA que el conector puede consultar, con las columnas permitidas.
-// Lo que una persona ve de verdad lo decide la base (RLS) según sus permisos en SGA;
+// Tablas de SDA+ que el conector puede consultar, con las columnas permitidas.
+// Lo que una persona ve de verdad lo decide la base (RLS) según sus permisos en SDA+;
 // esta lista solo limita el alcance y esconde columnas internas (tokens y firmas).
-// Las columnas que SGA cierra a nivel de columna (p. ej. pastores.fecha_nacimiento,
+// Las columnas que SDA+ cierra a nivel de columna (p. ej. pastores.fecha_nacimiento,
 // email_personal, fecha_ingreso) no se incluyen: pedirlas hace fallar la consulta.
 
 export const TABLAS = {
@@ -177,25 +177,25 @@ export const TABLAS = {
   },
 
   // ── Formularios ──────────────────────────────────────────────
-  // Dos orígenes: el módulo Formularios de SGA (esquema public) y los formularios de
+  // Dos orígenes: el módulo Formularios de SDA+ (esquema public) y los formularios de
   // cada evento (esquema eventos, con `esquema` y el nombre real en `tabla`).
   // Para leer respuestas con el nombre de cada pregunta es más fácil sga_formulario_respuestas.
   formularios: {
     modulo: 'Formularios',
-    descripcion: 'Formularios del módulo Formularios de SGA (audiencia: distritos, libre o empleados; estado: borrador, abierto o cerrado). Requiere ver_formularios.',
+    descripcion: 'Formularios del módulo Formularios de SDA+ (audiencia: distritos, libre o empleados; estado: borrador, abierto o cerrado). Requiere ver_formularios.',
     columnas: ['id', 'titulo', 'descripcion', 'audiencia', 'estado', 'fecha_limite', 'mensaje_final', 'creado_por_email', 'created_at', 'updated_at'],
     por_defecto: ['id', 'titulo', 'audiencia', 'estado', 'fecha_limite', 'created_at'],
     orden: 'created_at.desc',
   },
   formularios_campos: {
     modulo: 'Formularios',
-    descripcion: 'Preguntas de cada formulario de SGA (formulario_id → formularios.id). En formularios_respuestas.valores, la llave de cada respuesta es el id del campo.',
+    descripcion: 'Preguntas de cada formulario de SDA+ (formulario_id → formularios.id). En formularios_respuestas.valores, la llave de cada respuesta es el id del campo.',
     columnas: ['id', 'formulario_id', 'orden', 'tipo', 'etiqueta', 'ayuda', 'requerido', 'opciones', 'identifica', 'activo'],
     orden: 'orden',
   },
   formularios_respuestas: {
     modulo: 'Formularios',
-    descripcion: 'Respuestas a los formularios de SGA. valores es un objeto {id_del_campo: respuesta}. Incluye distrito, zona y pastor cuando el formulario es por distrito, y empleado_cod cuando está vinculada a un empleado.',
+    descripcion: 'Respuestas a los formularios de SDA+. valores es un objeto {id_del_campo: respuesta}. Incluye distrito, zona y pastor cuando el formulario es por distrito, y empleado_cod cuando está vinculada a un empleado.',
     columnas: ['id', 'formulario_id', 'created_at', 'cod_distrito', 'distrito', 'zona', 'pastor_cod', 'pastor_nombre', 'valores', 'empleado_cod', 'vinculo_origen'],
     orden: 'created_at.desc',
   },
@@ -209,7 +209,7 @@ export const TABLAS = {
     modulo: 'Eventos',
     esquema: 'eventos',
     tabla: 'eventos',
-    descripcion: 'Eventos de SGA (módulo Eventos) que el usuario puede ver: los de su equipo, o todos si ve todos los eventos.',
+    descripcion: 'Eventos de SDA+ (módulo Eventos) que el usuario puede ver: los de su equipo, o todos si ve todos los eventos.',
     columnas: ['id', 'slug', 'nombre', 'descripcion', 'tipo', 'fecha_inicio', 'fecha_fin', 'estado', 'archivado'],
     por_defecto: ['id', 'slug', 'nombre', 'tipo', 'fecha_inicio', 'fecha_fin', 'estado'],
     orden: 'fecha_inicio.desc',
@@ -242,7 +242,7 @@ export const TABLAS = {
 
   // ── Eventos: personas, programas y asistencia ────────────────
   // Solo lo de los eventos en cuyo equipo está la persona (RLS por área).
-  // Sin tokens ni pagos: los enlaces personales y el dinero no salen de SGA.
+  // Sin tokens ni pagos: los enlaces personales y el dinero no salen de SDA+.
   eventos_personas: {
     modulo: 'Eventos',
     esquema: 'eventos',

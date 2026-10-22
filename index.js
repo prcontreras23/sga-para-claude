@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// sga-para-claude — conector MCP de solo lectura entre Claude y SGA (ADOSE).
+// sga-para-claude — conector MCP de solo lectura entre Claude y SDA+ (ADOSE).
 //
 //   sga-para-claude           servidor MCP completo (lo arranca Claude)
 //   sga-para-claude directorio  servidor MCP solo con zonas, distritos, iglesias y personal
-//   sga-para-claude entrar    iniciar sesión en SGA
+//   sga-para-claude entrar    iniciar sesión en SDA+
 //   sga-para-claude estado    ver con qué usuario está conectado
 //   sga-para-claude salir     borrar la sesión guardada
 
@@ -17,10 +17,10 @@ import { iniciarSesion, sesionActual, borrarSesion, tokenVigente } from './src/s
 const comando = process.argv[2];
 
 if (comando === 'entrar') {
-  console.log('Se abrirá una página en su navegador para entrar a SGA...');
+  console.log('Se abrirá una página en su navegador para entrar a SDA+...');
   try {
     const s = await iniciarSesion({ avisar: (url) => console.log(`Si no se abre sola, copie esta dirección en el navegador:\n${url}`) });
-    console.log(`Listo. Claude quedó conectado a SGA con el usuario ${s.email}.`);
+    console.log(`Listo. Claude quedó conectado a SDA+ con el usuario ${s.email}.`);
     process.exit(0);
   } catch (e) {
     console.error(e.message);
@@ -29,11 +29,11 @@ if (comando === 'entrar') {
 } else if (comando === 'estado') {
   const token = await tokenVigente().catch(() => null);
   const s = sesionActual();
-  console.log(token && s ? `Conectado a SGA como ${s.email}.` : 'No hay sesión de SGA. Use: sga-para-claude entrar');
+  console.log(token && s ? `Conectado a SDA+ como ${s.email}.` : 'No hay sesión de SDA+. Use: sga-para-claude entrar');
   process.exit(0);
 } else if (comando === 'salir') {
   borrarSesion();
-  console.log('Sesión de SGA borrada de esta computadora.');
+  console.log('Sesión de SDA+ borrada de esta computadora.');
   process.exit(0);
 } else if (comando && comando !== 'directorio') {
   console.error(`Comando desconocido: ${comando}. Use entrar, estado, salir o directorio.`);
@@ -64,8 +64,8 @@ async function conSesion(fn) {
     ]);
     if (!listo) {
       return texto(
-        'Para consultar SGA hay que iniciar sesión. Se abrió una página en el navegador: ' +
-        'entre con el mismo correo y contraseña de SGA y luego repita la consulta.' +
+        'Para consultar SDA+ hay que iniciar sesión. Se abrió una página en el navegador: ' +
+        'entre con el mismo correo y contraseña de SDA+ y luego repita la consulta.' +
         (url ? `\nSi la página no se abrió, use esta dirección: ${url}` : ''),
       );
     }
@@ -73,21 +73,21 @@ async function conSesion(fn) {
   }
 }
 
-const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.4.0' }, {
+const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.4.1' }, {
   instructions:
-    'Conector de solo lectura a SGA, el sistema oficial de ADOSE (Asociación Dominicana del Sureste): ' +
+    'Conector de solo lectura a SDA+, el sistema oficial de ADOSE (Asociación Dominicana del Sureste): ' +
     (alcance === 'directorio'
       ? 'zonas, distritos, iglesias y personal (pastores, plantadores, oficina, departamentales y administradores) con sus teléfonos. '
       : 'iglesias, distritos, zonas, personal y RRHH, vacaciones y permisos, y actas de junta. ') +
     'También los formularios y sus respuestas, y los eventos con sus personas, programas y asistencia. ' +
-    'Consulta con el usuario de SGA de la persona y solo ve lo que sus permisos le dejan ver. ' +
+    'Consulta con el usuario de SDA+ de la persona y solo ve lo que sus permisos le dejan ver. ' +
     'Para buscar a alguien y su teléfono use sga_buscar_persona. Para ver formularios use sga_formularios y sga_formulario_respuestas. Para las personas, el grupo y la asistencia de un evento use sga_evento_personas. Para lo demás, sga_tablas y luego sga_consultar. ' +
     'Las tablas se relacionan por códigos: pastores.cod = pastor_cod; distritos.cod = codDistrito; zonas.cod = codZona; iglesias.cod = iglesia_cod. ' +
-    'No puede modificar nada en SGA.',
+    'No puede modificar nada en SDA+.',
 });
 
 server.registerTool('sga_buscar_persona', {
-  title: 'Buscar persona en SGA',
+  title: 'Buscar persona en SDA+',
   description:
     'Busca personas del personal de ADOSE (pastores y empleados de oficina) por nombre, cargo, distrito o zona, ' +
     'y devuelve teléfono, extensión, correo, cargo, zona y distrito. Busca cada palabra por separado y no distingue mayúsculas.',
@@ -115,8 +115,8 @@ server.registerTool('sga_buscar_persona', {
 }));
 
 server.registerTool('sga_tablas', {
-  title: 'Tablas de SGA',
-  description: 'Lista las tablas de SGA que se pueden consultar, con su descripción y columnas. Úsela antes de sga_consultar.',
+  title: 'Tablas de SDA+',
+  description: 'Lista las tablas de SDA+ que se pueden consultar, con su descripción y columnas. Úsela antes de sga_consultar.',
   inputSchema: {
     modulo: z.enum(MODULOS).optional().describe('Filtrar por módulo'),
   },
@@ -136,10 +136,10 @@ const filtroSchema = z.object({
 });
 
 server.registerTool('sga_consultar', {
-  title: 'Consultar SGA',
+  title: 'Consultar SDA+',
   description:
-    'Consulta una tabla de SGA en solo lectura, con filtros, orden y límite. Las fechas van en formato AAAA-MM-DD. ' +
-    'Si no se indican columnas, devuelve las más útiles. Si una tabla devuelve vacío, puede ser que el usuario no tenga permiso para verla en SGA.',
+    'Consulta una tabla de SDA+ en solo lectura, con filtros, orden y límite. Las fechas van en formato AAAA-MM-DD. ' +
+    'Si no se indican columnas, devuelve las más útiles. Si una tabla devuelve vacío, puede ser que el usuario no tenga permiso para verla en SDA+.',
   inputSchema: {
     tabla: z.enum(Object.keys(TABLAS)),
     columnas: z.array(z.string()).optional(),
@@ -153,7 +153,7 @@ server.registerTool('sga_consultar', {
 }, async (args) => conSesion(async () => {
   const r = await consultar(args, TABLAS);
   const nota = r.cantidad === 0
-    ? 'Sin resultados. Si esperaba datos, puede ser que su usuario de SGA no tenga permiso para esta tabla.'
+    ? 'Sin resultados. Si esperaba datos, puede ser que su usuario de SDA+ no tenga permiso para esta tabla.'
     : r.cantidad === r.limite ? `Se devolvieron ${r.limite} filas (el límite). Puede haber más: use "desde" o filtros.` : undefined;
   return json({ ...r, ...(nota ? { nota } : {}) });
 }));
@@ -190,9 +190,9 @@ async function listaFormularios() {
 }
 
 server.registerTool('sga_formularios', {
-  title: 'Formularios de SGA',
+  title: 'Formularios de SDA+',
   description:
-    'Lista los formularios que el usuario puede ver: los del módulo Formularios de SGA (origen "sga") y los de los eventos (origen "evento"), ' +
+    'Lista los formularios que el usuario puede ver: los del módulo Formularios de SDA+ (origen "sga") y los de los eventos (origen "evento"), ' +
     'con estado y cantidad de respuestas. Use el id con sga_formulario_respuestas.',
   inputSchema: {
     texto: z.string().optional().describe('Filtrar por parte del nombre del formulario o del evento'),
@@ -201,14 +201,14 @@ server.registerTool('sga_formularios', {
 }, async ({ texto: t }) => conSesion(async () => {
   let xs = await listaFormularios();
   if (t) { const ps = normal(t).split(/\s+/).filter(Boolean); xs = xs.filter((f) => ps.every((p) => normal(`${f.nombre} ${f.evento || ''}`).includes(p))); }
-  if (!xs.length) return texto(t ? `No encontré formularios con "${t}" que su usuario pueda ver.` : 'Su usuario de SGA no tiene acceso a ningún formulario.');
+  if (!xs.length) return texto(t ? `No encontré formularios con "${t}" que su usuario pueda ver.` : 'Su usuario de SDA+ no tiene acceso a ningún formulario.');
   return json(xs);
 }));
 
 server.registerTool('sga_formulario_respuestas', {
   title: 'Respuestas de un formulario',
   description:
-    'Devuelve las respuestas de un formulario (de SGA o de un evento) con el texto de cada pregunta como nombre de columna, ' +
+    'Devuelve las respuestas de un formulario (de SDA+ o de un evento) con el texto de cada pregunta como nombre de columna, ' +
     'más la fecha de envío y, si aplica, distrito, pastor o quien envió. Acepta el id o parte del nombre del formulario.',
   inputSchema: {
     formulario: z.string().min(2).describe('Id del formulario (de sga_formularios) o parte de su nombre'),
@@ -265,7 +265,7 @@ async function buscarEvento(t) {
 server.registerTool('sga_evento_personas', {
   title: 'Personas de un evento',
   description:
-    'Lista las personas de un evento de SGA con iglesia, distrito, zona, teléfono, grupo (p. ej. «Graduación 21 nov») ' +
+    'Lista las personas de un evento de SDA+ con iglesia, distrito, zona, teléfono, grupo (p. ej. «Graduación 21 nov») ' +
     'y la asistencia: cuántos programas asistió y cuáles. Incluye un resumen por grupo y por zona. ' +
     'Se puede filtrar por grupo, zona, distrito, iglesia o nombre (sin tildes ni mayúsculas).',
   inputSchema: {
@@ -282,7 +282,7 @@ server.registerTool('sga_evento_personas', {
 }, async ({ evento, grupo, zona, distrito, iglesia, nombre, solo_resumen, limite }) => conSesion(async () => {
   const { evento: ev, opciones } = await buscarEvento(evento);
   if (!ev) {
-    if (!opciones.length) return texto('Su usuario de SGA no tiene acceso a ningún evento.');
+    if (!opciones.length) return texto('Su usuario de SDA+ no tiene acceso a ningún evento.');
     return json({ nota: `No encontré un solo evento con "${evento}". Repita con el slug.`, eventos: opciones.map(({ slug, nombre }) => ({ slug, nombre })) });
   }
   const filtro = [{ columna: 'evento_id', operador: 'eq', valor: ev.id }];
@@ -315,8 +315,8 @@ server.registerTool('sga_evento_personas', {
 }));
 
 server.registerTool('sga_quien_soy', {
-  title: 'Usuario de SGA conectado',
-  description: 'Dice con qué usuario de SGA está conectado Claude y qué permisos tiene ese usuario.',
+  title: 'Usuario de SDA+ conectado',
+  description: 'Dice con qué usuario de SDA+ está conectado Claude y qué permisos tiene ese usuario.',
   inputSchema: {},
   annotations: { readOnlyHint: true },
 }, async () => conSesion(async () => {
