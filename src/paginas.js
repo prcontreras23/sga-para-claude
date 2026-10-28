@@ -46,6 +46,20 @@ export function paginaEntrada({ error = '', email = '', captcha = '' } = {}) {
   <p class="nota">Claude solo podrá consultar, nunca modificar, y verá lo mismo que usted ve en SDA+.</p>`);
 }
 
+export function paginaCodigo({ error = '' } = {}) {
+  return marco(`
+  <img src="${LOGO}" alt="SDA+">
+  <h1>Código de verificación</h1>
+  <p>Escriba el código de 6 dígitos que muestra su aplicación de autenticación, el mismo que usa para entrar a SDA+.</p>
+  ${error ? `<div class="error">${esc(error)}</div>` : ''}
+  <form method="post">
+    <input type="hidden" name="paso" value="codigo">
+    <label for="codigo">Código</label>
+    <input id="codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" required autofocus>
+    <button type="submit">Verificar</button>
+  </form>`);
+}
+
 export function paginaListo(email) {
   return marco(`
   <img src="${LOGO}" alt="SDA+">
