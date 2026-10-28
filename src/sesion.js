@@ -7,7 +7,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { Entry } from '@napi-rs/keyring';
-import { paginaEntrada, paginaCodigo, paginaListo } from './paginas.js';
+import { paginaEntrada, paginaCodigo, paginaError, paginaListo } from './paginas.js';
 
 // Datos públicos de SDA+: los mismos que lleva la página de entrada de la app.
 export const SUPABASE_URL = 'https://gvbknabnrlliofbchczv.supabase.co';
@@ -156,12 +156,14 @@ export function iniciarSesion({ avisar = () => {}, minutos = 5 } = {}) {
       const url = new URL(req.url, 'http://127.0.0.1');
       if (url.pathname !== `/${clave}`) { res.writeHead(404).end(); return; }
 
-      // SDA+ exige la comprobación de Turnstile para entrar. Esa comprobación se hace en una
-      // página de SDA+, que vuelve aquí con ?captcha=<token>; cada token sirve una sola vez.
+      // Desde v0.7.0 (29 oct 2026) la persona entra en una página de SDA+ (v=2): ahí su
+      // administrador de contraseñas la reconoce, y ahí escribe el código si su cuenta lo pide.
+      // Esa página devuelve aquí la sesión por POST (paso=sesion). Si SDA+ todavía tiene la
+      // página anterior, ignora v=2 y vuelve con ?captcha=<token> para el formulario de aquí.
       if (req.method === 'GET') {
         const captcha = url.searchParams.get('captcha') || '';
         if (!captcha) {
-          res.writeHead(302, { Location: `${SITIO}/conector/?p=${server.address().port}&c=${clave}` }).end();
+          res.writeHead(302, { Location: `${SITIO}/conector/?p=${server.address().port}&c=${clave}&v=2` }).end();
           return;
         }
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
@@ -176,6 +178,19 @@ export function iniciarSesion({ avisar = () => {}, minutos = 5 } = {}) {
         const f = new URLSearchParams(cuerpo);
         const html = (pagina) => res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(pagina);
         const listo = (s) => { guardar(s); html(paginaListo(s.email)); terminar(); resolve(s); };
+
+        // Sesión hecha en la página de SDA+. Se renueva aquí para comprobarla y quedarse con
+        // un token que solo tiene el conector.
+        if (f.get('paso') === 'sesion') {
+          try {
+            const s = await pedirToken('refresh_token', { refresh_token: f.get('refresh_token') || '' });
+            if (await codigoPendiente(s)) throw new Error('La sesión llegó sin el código de verificación.');
+            listo(s);
+          } catch (e) {
+            html(paginaError(`SDA+ no aceptó la sesión (${e.message}).`, `/${clave}`));
+          }
+          return;
+        }
 
         // Segundo paso: el código de 6 dígitos de la app autenticadora.
         if (f.get('paso') === 'codigo') {

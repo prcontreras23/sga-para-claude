@@ -1,6 +1,6 @@
 {
   "name": "sga-para-claude",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Conector de solo lectura entre Claude y SDA+ (ADOSE). Entra con el usuario de SDA+ de cada persona y respeta sus permisos.",
   "type": "module",
   "bin": {

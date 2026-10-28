@@ -60,6 +60,14 @@ export function paginaCodigo({ error = '' } = {}) {
   </form>`);
 }
 
+export function paginaError(error, enlace) {
+  return marco(`
+  <img src="${LOGO}" alt="SDA+">
+  <h1>No se pudo conectar</h1>
+  <div class="error">${esc(error)}</div>
+  <a href="${esc(enlace)}"><button type="button">Intentar de nuevo</button></a>`);
+}
+
 export function paginaListo(email) {
   return marco(`
   <img src="${LOGO}" alt="SDA+">

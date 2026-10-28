@@ -70,22 +70,69 @@ test('cuenta que pide código: muestra la página del código, rechaza uno malo 
 
 test('cuenta que pide código y no lo ha activado: avisa que lo active en SDA+', async () => {
   borrarSesion(); est.pide = true; est.factor = false;
-  const { p, r1 } = await entrar();
+  const { p, r1, url } = await entrar();
   assert.equal(r1.status, 303);
-  p.catch(() => {}); // queda esperando; se agota sola
   assert.equal(guardado.v, null);
+  // Se cierra la ventana entrando bien, para que las pruebas siguientes abran la suya.
+  await enviar(url, { paso: 'sesion', refresh_token: 'r-aal2' });
+  await p;
 });
 
 test('sesión guardada sin código en una cuenta que ahora lo pide: se borra para volver a entrar', async () => {
-  est.pide = true;
+  borrarSesion(); est.pide = true;
   guardado.v = JSON.stringify({ refresh_token: 'r-aal1', email: 'a@b.org', user_id: 'u1' });
   assert.equal(await tokenVigente(), null);
   assert.equal(guardado.v, null);
 });
 
 test('sesión guardada con código: sigue funcionando al renovarse', async () => {
-  est.pide = true;
+  borrarSesion(); est.pide = true;
   guardado.v = JSON.stringify({ refresh_token: 'r-aal2', email: 'a@b.org', user_id: 'u1' });
   const t = await tokenVigente();
   assert.equal(aalDe('B ' + t), 'aal2');
+});
+
+// ---- v0.7.0: la entrada se hace en la página de SDA+ y la sesión llega por POST ----
+async function abrir() {
+  let url;
+  const p = iniciarSesion({ avisar: (u) => { url = u; }, minutos: 1 });
+  while (!url) await new Promise((r) => setTimeout(r, 10));
+  return { p, url };
+}
+
+test('v0.7.0: abre la página de entrada de SDA+ con v=2', async () => {
+  borrarSesion(); est.pide = false;
+  const { p, url } = await abrir();
+  const r = await fetchReal(url, { redirect: 'manual' });
+  assert.equal(r.status, 302);
+  assert.match(r.headers.get('location'), /^https:\/\/sda\.adventistassureste\.org\/conector\/\?p=\d+&c=[0-9a-f]{32}&v=2$/);
+  await enviar(url, { paso: 'sesion', refresh_token: 'r-aal1' });
+  await p;
+});
+
+test('v0.7.0: sesión con código desde SDA+ → queda conectado con aal2', async () => {
+  borrarSesion(); est.pide = true;
+  const { p, url } = await abrir();
+  const t = await (await enviar(url, { paso: 'sesion', refresh_token: 'r-aal2' })).text();
+  assert.match(t, /Listo/);
+  assert.equal(aalDe('B ' + (await p).access_token), 'aal2');
+});
+
+test('v0.7.0: sesión sin código en cuenta que lo pide → no se guarda y se puede reintentar', async () => {
+  borrarSesion(); est.pide = true;
+  const { p, url } = await abrir();
+  const t = await (await enviar(url, { paso: 'sesion', refresh_token: 'r-aal1' })).text();
+  assert.match(t, /No se pudo conectar/);
+  assert.equal(guardado.v, null);
+  // La misma ventana sigue abierta para intentarlo bien.
+  assert.match(await (await enviar(url, { paso: 'sesion', refresh_token: 'r-aal2' })).text(), /Listo/);
+  await p;
+});
+
+test('v0.7.0: SDA+ con la página anterior (vuelve con ?captcha) → sigue el formulario de aquí', async () => {
+  borrarSesion(); est.pide = false;
+  const { p, url } = await abrir();
+  assert.match(await (await fetchReal(url + '?captcha=tok')).text(), /Contraseña/);
+  assert.match(await (await enviar(url, { email: 'a@b.org', password: 'x', captcha: 'tok' })).text(), /Listo/);
+  await p;
 });
