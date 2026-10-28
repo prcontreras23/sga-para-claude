@@ -4,6 +4,8 @@ import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
 const guardado = { v: null };
+// Que la prueba no abra el navegador de verdad.
+mock.module('node:child_process', { namedExports: { spawn: () => ({ unref() {} }) } });
 mock.module('@napi-rs/keyring', { namedExports: { Entry: class {
   getPassword() { return guardado.v; } setPassword(v) { guardado.v = v; } deletePassword() { guardado.v = null; }
 } } });
