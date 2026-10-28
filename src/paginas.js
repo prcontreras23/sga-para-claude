@@ -2,7 +2,7 @@
 
 const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const LOGO = 'https://sga.adventistassureste.org/logo-siga-encabezado.png';
+const LOGO = 'https://sda.adventistassureste.org/logo-siga-encabezado.png';
 
 function marco(cuerpo) {
   return `<!doctype html>
@@ -29,13 +29,14 @@ function marco(cuerpo) {
 </style></head><body><main class="caja">${cuerpo}</main></body></html>`;
 }
 
-export function paginaEntrada({ error = '', email = '' } = {}) {
+export function paginaEntrada({ error = '', email = '', captcha = '' } = {}) {
   return marco(`
   <img src="${LOGO}" alt="SDA+">
   <h1>Conectar Claude con SDA+</h1>
   <p>Use el mismo correo y la misma contraseña con los que entra a SDA+.</p>
   ${error ? `<div class="error">${esc(error)}</div>` : ''}
   <form method="post">
+    <input type="hidden" name="captcha" value="${esc(captcha)}">
     <label for="email">Correo</label>
     <input id="email" name="email" type="email" autocomplete="username" required value="${esc(email)}" ${email ? '' : 'autofocus'}>
     <label for="password">Contraseña</label>

@@ -11,6 +11,7 @@ import { paginaEntrada, paginaListo } from './paginas.js';
 
 // Datos públicos de SDA+: los mismos que lleva la página de entrada de la app.
 export const SUPABASE_URL = 'https://gvbknabnrlliofbchczv.supabase.co';
+export const SITIO = 'https://sda.adventistassureste.org';
 export const PUBLISHABLE_KEY = 'sb_publishable_Aq0D-OaqMzUbtGNLrTo4aQ_36xEH-vI';
 
 const llavero = new Entry('sga-para-claude', 'sesion');
@@ -100,12 +101,21 @@ export function iniciarSesion({ avisar = () => {}, minutos = 5 } = {}) {
   if (entradaEnCurso) return entradaEnCurso;
   entradaEnCurso = new Promise((resolve, reject) => {
     const clave = crypto.randomBytes(16).toString('hex');
+    let ultimo = {};
     const server = http.createServer(async (req, res) => {
       const url = new URL(req.url, 'http://127.0.0.1');
       if (url.pathname !== `/${clave}`) { res.writeHead(404).end(); return; }
 
+      // SDA+ exige la comprobación de Turnstile para entrar. Esa comprobación se hace en una
+      // página de SDA+, que vuelve aquí con ?captcha=<token>; cada token sirve una sola vez.
       if (req.method === 'GET') {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(paginaEntrada());
+        const captcha = url.searchParams.get('captcha') || '';
+        if (!captcha) {
+          res.writeHead(302, { Location: `${SITIO}/conector/?p=${server.address().port}&c=${clave}` }).end();
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+          .end(paginaEntrada({ ...ultimo, captcha }));
         return;
       }
       if (req.method !== 'POST') { res.writeHead(405).end(); return; }
@@ -116,17 +126,22 @@ export function iniciarSesion({ avisar = () => {}, minutos = 5 } = {}) {
         const f = new URLSearchParams(cuerpo);
         const email = (f.get('email') || '').trim().toLowerCase();
         const password = f.get('password') || '';
+        const captcha = f.get('captcha') || '';
         try {
-          const s = await pedirToken('password', { email, password });
+          const s = await pedirToken('password', { email, password, gotrue_meta_security: { captcha_token: captcha } });
           guardar(s);
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(paginaListo(s.email));
           terminar();
           resolve(s);
         } catch (e) {
-          const msg = e.code === 'invalid_credentials' || e.status === 400
-            ? 'El correo o la contraseña no son correctos. Use los mismos con los que entra a SDA+.'
-            : `No se pudo iniciar sesión: ${e.message}`;
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(paginaEntrada({ error: msg, email }));
+          const msg = /captcha/i.test(`${e.code} ${e.message}`)
+            ? 'No se pudo completar la comprobación de seguridad. Intente de nuevo.'
+            : e.code === 'invalid_credentials' || e.status === 400
+              ? 'El correo o la contraseña no son correctos. Use los mismos con los que entra a SDA+.'
+              : `No se pudo iniciar sesión: ${e.message}`;
+          // El token ya se gastó: se vuelve a la comprobación y luego al formulario con el aviso.
+          ultimo = { error: msg, email };
+          res.writeHead(303, { Location: `/${clave}` }).end();
         }
       });
     });

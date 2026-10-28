@@ -73,7 +73,7 @@ async function conSesion(fn) {
   }
 }
 
-const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.4.1' }, {
+const server = new McpServer({ name: alcance === 'directorio' ? 'sga-directorio' : 'sga', version: '0.5.0' }, {
   instructions:
     'Conector de solo lectura a SDA+, el sistema oficial de ADOSE (Asociación Dominicana del Sureste): ' +
     (alcance === 'directorio'
